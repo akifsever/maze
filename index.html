@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        .game-container {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 20px;
+        }
+
+        #maze {
+            display: inline-block;
+            margin: 20px;
+        }
+
+        .maze-row {
+            display: flex;
+        }
+
+        .maze-cell {
+            width: 30px;
+            height: 30px;
+            border: 1px solid #ccc;
+        }
+
+        .wall {
+            background-color: #333;
+        }
+
+        .player {
+            background-color: #4CAF50;
+            border-radius: 50%;
+        }
+
+        .exit {
+            background-color: #f44336;
+        }
+
+        .controls {
+            margin: 20px;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+
+        button:hover {
+            background-color: #1976D2;
+        }
+
+        #gamepad-status {
+            margin: 10px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>Maze Game</h1>
+        <button onclick="generateMaze()">New Maze</button>
+        <div id="maze"></div>
+        <div class="controls">
+            <button onclick="move(0, -1)">Up</button><br>
+            <button onclick="move(-1, 0)">Left</button>
+            <button onclick="move(1, 0)">Right</button><br>
+            <button onclick="move(0, 1)">Down</button>
+        </div>
+        <div id="gamepad-status">Gamepad: Not Connected</div>
+    </div>
+
+    <script>
+        const mazeSize = { width: 15, height: 15 };
+        let maze = [];
+        let playerPos = { x: 1, y: 1 };
+        let gamepadCheckInterval;
+
+        // Generate a random maze using recursive backtracking
+        function generateMaze() {
+            maze = Array(mazeSize.height).fill().map(() => Array(mazeSize.width).fill(1));
+            
+            function carve(x, y) {
+                maze[y][x] = 0;
+                const directions = [
+                    [0, -2], // Up
+                    [2, 0],  // Right
+                    [0, 2],  // Down
+                    [-2, 0]  // Left
+                ].sort(() => Math.random() - 0.5);
+
+                directions.forEach(([dx, dy]) => {
+                    const newX = x + dx;
+                    const newY = y + dy;
+                    if (
+                        newX > 0 && newX < mazeSize.width - 1 && 
+                        newY > 0 && newY < mazeSize.height - 1 && 
+                        maze[newY][newX] === 1
+                    ) {
+                        maze[y + dy/2][x + dx/2] = 0;
+                        carve(newX, newY);
+                    }
+                });
+            }
+
+            carve(1, 1);
+            maze[mazeSize.height-2][mazeSize.width-2] = 2; // Set exit
+            playerPos = { x: 1, y: 1 };
+            renderMaze();
+        }
+
+        // Render the maze
+        function renderMaze() {
+            const mazeElement = document.getElementById('maze');
+            mazeElement.innerHTML = '';
+
+            for (let y = 0; y < mazeSize.height; y++) {
+                const row = document.createElement('div');
+                row.className = 'maze-row';
+
+                for (let x = 0; x < mazeSize.width; x++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'maze-cell';
+
+                    if (x === playerPos.x && y === playerPos.y) {
+                        cell.classList.add('player');
+                    } else if (maze[y][x] === 1) {
+                        cell.classList.add('wall');
+                    } else if (maze[y][x] === 2) {
+                        cell.classList.add('exit');
+                    }
+
+                    row.appendChild(cell);
+                }
+                mazeElement.appendChild(row);
+            }
+        }
+
+        // Move the player
+        function move(dx, dy) {
+            const newX = playerPos.x + dx;
+            const newY = playerPos.y + dy;
+
+            if (
+                newX >= 0 && newX < mazeSize.width &&
+                newY >= 0 && newY < mazeSize.height &&
+                maze[newY][newX] !== 1
+            ) {
+                playerPos.x = newX;
+                playerPos.y = newY;
+                renderMaze();
+
+                if (maze[newY][newX] === 2) {
+                    alert('Congratulations! You reached the exit!');
+                    generateMaze();
+                }
+            }
+        }
+
+        // Handle keyboard controls
+        document.addEventListener('keydown', (e) => {
+            switch(e.key) {
+                case 'ArrowUp': move(0, -1); break;
+                case 'ArrowRight': move(1, 0); break;
+                case 'ArrowDown': move(0, 1); break;
+                case 'ArrowLeft': move(-1, 0); break;
+            }
+        });
+
+        // Handle gamepad
+        window.addEventListener('gamepadconnected', (e) => {
+            document.getElementById('gamepad-status').textContent = 'Gamepad: Connected';
+            gamepadCheckInterval = setInterval(checkGamepad, 100);
+        });
+
+        window.addEventListener('gamepaddisconnected', (e) => {
+            document.getElementById('gamepad-status').textContent = 'Gamepad: Not Connected';
+            if (gamepadCheckInterval) clearInterval(gamepadCheckInterval);
+        });
+
+        function checkGamepad() {
+            const gamepad = navigator.getGamepads()[0];
+            if (gamepad) {
+                if (gamepad.axes[0] < -0.5) move(-1, 0);  // Left
+                if (gamepad.axes[0] > 0.5) move(1, 0);   // Right
+                if (gamepad.axes[1] < -0.5) move(0, -1);  // Up
+                if (gamepad.axes[1] > 0.5) move(0, 1);   // Down
+            }
+        }
+
+        // Generate initial maze
+        generateMaze();
+    </script>
+</body>
+</html>
